@@ -1,0 +1,68 @@
+# TallyBard — Render blueprint
+#
+# Three services: static web UI, Mastra API (TypeScript), FastAPI risk sidecar.
+# Secrets are `sync: false` — paste them in the Render dashboard after the
+# blueprint is applied (DATABASE_URL/DATABASE_URL_RW from Tiger,
+# GOOGLE_API_KEY, SENTRY_DSN, OLLAMA_API_KEY/OLLAMA_BASE_URL once the droplet
+# exists, TABPFN_TOKEN only if running api mode).
+#
+# NOTE on sidecar size: local TabPFN (torch) needs real RAM — measure before
+# deploying and bump `plan` if needed (see docs/STATUS.md / docs/results.md).
+# If it doesn't fit, set TABPFN_MODE=api and the README says so plainly.
+
+services:
+  - type: web
+    name: tallybard-web
+    runtime: static
+    staticPublishPath: apps/web
+    # hash-routed SPA — no rewrites needed
+
+  - type: web
+    name: tallybard-api
+    runtime: node
+    plan: starter
+    rootDir: apps/api
+    buildCommand: npm ci && npx mastra build
+    startCommand: node --import=./instrument.mjs .mastra/output/index.mjs
+    envVars:
+      - key: DATABASE_URL_RW
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: OLLAMA_API_KEY
+        sync: false
+      - key: MODEL_BACKEND
+        value: aistudio # flip to ollama when the droplet is up
+      - key: AI_CHAT_MODEL
+        value: gemma-4-26b-a4b-it
+      - key: AI_EMBED_MODEL
+        value: gemini-embedding-001
+      - key: RISK_SIDECAR_URL
+        value: https://tallybard-sidecar.onrender.com
+      - key: WEB_ORIGIN
+        value: https://tallybard-web.onrender.com
+      - key: SENTRY_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "24"
+
+  - type: web
+    name: tallybard-sidecar
+    runtime: python
+    plan: standard # torch + TabPFN weights need >512MB; verify peak RAM
+    rootDir: apps/risk-sidecar
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL # read-only DSN — sidecar never writes
+        sync: false
+      - key: TABPFN_MODE
+        value: local
+      - key: TABPFN_TOKEN
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12"
