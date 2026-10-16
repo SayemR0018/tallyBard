@@ -34,7 +34,7 @@ def main() -> None:
     i = 0
     while i < len(args):
         if args[i] == "-f":
-            sql = Path(args[i + 1]).read_text()
+            sql = Path(args[i + 1]).read_text(encoding="utf-8")
             i += 2
         elif args[i] == "-c":
             sql = args[i + 1]
