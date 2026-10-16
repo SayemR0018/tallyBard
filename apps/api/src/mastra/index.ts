@@ -1,6 +1,6 @@
-import "./loadenv.js";
+import { loadEnv } from "./loadenv.js";
+loadEnv();
 import { Mastra } from "@mastra/core";
-import { registerApiRoute } from "@mastra/core/server";
 import {
   Observability,
   SensitiveDataFilter,
@@ -9,6 +9,7 @@ import type { AnySpan, SpanOutputProcessor } from "@mastra/core/observability";
 import { OtelBridge } from "@mastra/otel-bridge";
 import { PostgresStore } from "@mastra/pg";
 import { tallybardAgent } from "./agents/tallybard.js";
+import { dsn, ssl } from "./db.js";
 import { weeklyChase } from "./workflows/weekly-chase.js";
 
 const captureContent = process.env.SENTRY_CAPTURE_CONTENT === "1";
@@ -45,8 +46,8 @@ function rateLimitMiddleware(c: any, next: any) {
 
 const storage = new PostgresStore({
   id: "tallybard-store",
-  connectionString:
-    process.env.DATABASE_URL_RW || process.env.DATABASE_URL || "",
+  connectionString: dsn(process.env.DATABASE_URL_RW || process.env.DATABASE_URL) || "",
+  ssl,
 });
 
 export const mastra = new Mastra({
@@ -71,14 +72,8 @@ export const mastra = new Mastra({
       allowMethods: ["GET", "POST", "OPTIONS"],
       credentials: false,
     },
+    // Mastra serves GET /health ({"success":true}) itself — used by the Render
+    // health check and the web app's warm-up ping.
     middleware: [rateLimitMiddleware],
-    // Render health check + the web app's warm-up ping. Cheap: no DB hit.
-    apiRoutes: [
-      registerApiRoute("/health", {
-        method: "GET",
-        handler: async (c) =>
-          c.json({ status: "ok", service: "tallybard-api", demo_data: "synthetic" }),
-      }),
-    ],
   },
 });

@@ -1,12 +1,15 @@
+import { loadEnv } from "./loadenv.js";
 import pg from "pg";
+
+loadEnv();
 
 const { Pool } = pg;
 
 // Tiger Cloud serves a cert chain that pg's sslmode=verify-full mapping
 // rejects; TLS stays on, we just don't pin the CA (like psql sslmode=require).
 // Strip ssl* params from the DSN so our explicit ssl option wins.
-const ssl = { rejectUnauthorized: false };
-function dsn(url?: string): string | undefined {
+export const ssl = { rejectUnauthorized: false };
+export function dsn(url?: string): string | undefined {
   if (!url) return url;
   const u = new URL(url);
   for (const k of [...u.searchParams.keys()])

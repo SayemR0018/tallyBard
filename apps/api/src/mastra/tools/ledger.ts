@@ -106,9 +106,13 @@ export const confirmImport = createTool({
     } finally {
       client.release();
     }
+    scoreCache = null;
     return { inserted, client_ids: [...clientIds] };
   },
 });
+
+let scoreCache: { at: number; map: Record<string, number> } | null = null;
+const SCORE_TTL_MS = 90_000;
 
 export const scoreReceivables = createTool({
   id: "score_receivables",
@@ -145,7 +149,10 @@ export const chaseQueue = createTool({
   description:
     "Ranked chase queue: open receivables ordered by amount x P(late). " +
     "Joins ledger rows to sidecar risk scores.",
-  inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
+  inputSchema: z.object({
+    limit: z.number().int().min(1).max(50).default(20),
+    rescore: z.boolean().default(false),
+  }),
   outputSchema: z.object({
     queue: z.array(
       z.object({
@@ -166,18 +173,28 @@ export const chaseQueue = createTool({
        WHERE r.status IN ('pending','overdue') AND r.paid_at IS NULL`,
     );
     let scores: Record<string, number> = {};
-    try {
-      const res = await fetch(`${process.env.RISK_SIDECAR_URL}/score`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: "{}",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        for (const s of data.scores) scores[s.receivable_id] = s.p_late7;
+    const fresh =
+      !inputData.rescore &&
+      scoreCache &&
+      Date.now() - scoreCache.at < SCORE_TTL_MS;
+    if (fresh && scoreCache) {
+      scores = scoreCache.map;
+    } else {
+      try {
+        const res = await fetch(`${process.env.RISK_SIDECAR_URL}/score`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          for (const s of data.scores) scores[s.receivable_id] = s.p_late7;
+          if (Object.keys(scores).length)
+            scoreCache = { at: Date.now(), map: scores };
+        }
+      } catch {
+        // sidecar down -> queue still works, risk column null
       }
-    } catch {
-      // sidecar down -> queue still works, risk column null
     }
     const now = Date.now();
     const queue = open.rows
@@ -360,6 +377,7 @@ export const markPaid = createTool({
       "INSERT INTO payment_events (receivable_id, amount, paid_at, method) VALUES ($1,$2,now(),$3)",
       [inputData.receivable_id, amt, inputData.method],
     );
+    scoreCache = null;
     return { ok: true };
   },
 });
