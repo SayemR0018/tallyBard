@@ -2,6 +2,15 @@
 
 All times Asia/Dhaka.
 
+## 2026-10-16 20:15
+
+- **Done since last entry:** T12 `render.yaml` committed (web static + api starter + sidecar **pro/4GB** — measured sidecar warm RSS **2,255 MB** so 2GB standard would OOM). T16 `docs/results.md` — real numbers only. T11 `apps/api/scripts/bench.ts` + first real bench: aistudio/`gemma-4-26b-a4b-it` 15 calls p50=20.5s p95=26.2s; `embed_dim=768` confirmed via `outputDimensionality`. T15 README rewritten (arch, quickstart, partner map, honest results + limitations, PayMind credit, "Built with PriorLabs-TabPFN"). T18 `docs/outreach.md` — 3 drafts (freelancer en, tutor bn, shopkeeper bn+en).
+- **Droplet costs (verified digitalocean.com/pricing, awaiting your OK — T10/H4):**
+  - GPU bench: **RTX 4000 Ada, 20GB VRAM, 8 vCPU/32GB, $0.76/hr → ~$2.28 for 3h**, then destroy.
+  - CPU demo (always-on): **Basic 4GB/2vCPU ≈ $24/mo** recommended for ollama + embeddinggemma + gemma4:e2b; 2GB/$12 likely too tight with both models resident.
+- **Blocked-on-me:** droplet creation OK (above) — after that: ollama bench + demo URL; assign issues #2/#3 to Copilot agent; run copilot-cli-task in Copilot CLI w/ Entire; Sentry trace check; Render blueprint deploy + env vars; phone-check wa.me link; destroy GPU droplet; merge Copilot PRs; demo video/screenshots; post rewrite (T17 draft pending); send outreach (T18 drafts ready).
+- **Next:** T17 post draft (local file; will ask before staging to DEV).
+
 ## 2026-10-16 19:40
 
 - **Done since last entry:** T09 web scaffold committed — zero-build static SPA (`apps/web/`): import (extract→confirm), chase queue (TabPFN risk + draft + wa.me approve link), ask-your-ledger chat, privacy panel + backend badge, synthetic banner. Verified against live Mastra tool routes (`POST /api/tools/:id/execute`, `{data}` body). T13 CI: added `api` job (Node 24, `npm ci`, typecheck) + leakage-test step; `contents: read` preserved. T14: `docs/copilot-cli-task.md` (NudgeCard + `node --test` brief for Copilot CLI under Entire) + GitHub issues **#2** (CSV edge-cases: Bangla numerals, quotes, currency) and **#3** (wire mark_paid/mark_sent) filed via REST.
