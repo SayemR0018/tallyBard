@@ -2,6 +2,11 @@
 
 All times Asia/Dhaka.
 
+## 2026-10-16 20:15 (frontend redesign + Render release pass)
+
+- **Done since last entry:** Full frontend redesign on `feat/modern-frontend` (safety tag `pre-frontend-redesign`): 10-section marketing homepage (`/`, `/how-it-works`, `/privacy`, `/results`, `/open-source`) + 7-screen zero-login demo app (`/app`, `/app/import`, `/app/queue`, `/app/nudges`, `/app/ask`, `/app/privacy`, `/app/models`) with desktop sidebar and mobile bottom tab bar. Added `GET /health`, `list_nudges`, `system_status`, and a 90s score cache on `chase_queue`. Added deterministic zero-dependency `apps/web/build.mjs` + 20 `node --test` unit/boundary checks. Updated `render.yaml` (SPA rewrite, strict CSP/nosniff/Referrer-Policy headers, `/health` checks) and `.github/workflows/ci.yml` (`web` job). Wrote `docs/FRONTEND.md` and captured 9 desktop/mobile screenshots in `docs/screenshots/`.
+- **Blocked-on-me:** Render Blueprint deploy + paste `sync: false` secrets; DO droplet approval if running Ollama benchmarks; assign Copilot issues #2/#3 and run `docs/copilot-cli-task.md` under Entire.
+
 ## 2026-10-16 20:15
 
 - **Done since last entry:** T12 `render.yaml` committed (web static + api starter + sidecar **pro/4GB** — measured sidecar warm RSS **2,255 MB** so 2GB standard would OOM). T16 `docs/results.md` — real numbers only. T11 `apps/api/scripts/bench.ts` + first real bench: aistudio/`gemma-4-26b-a4b-it` 15 calls p50=20.5s p95=26.2s; `embed_dim=768` confirmed via `outputDimensionality`. T15 README rewritten (arch, quickstart, partner map, honest results + limitations, PayMind credit, "Built with PriorLabs-TabPFN"). T18 `docs/outreach.md` — 3 drafts (freelancer en, tutor bn, shopkeeper bn+en).

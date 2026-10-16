@@ -1,22 +1,14 @@
-# TallyBard web UI
+# TallyBard web (`apps/web`)
 
-Zero-build static SPA (vanilla ES modules — no bundler). Deploys as a Render
-static site or any static host.
+Zero-dependency static site + zero-login demo SPA for TallyBard. Ships plain ES modules and CSS custom properties — `build.mjs` copies `src/` + `public/` to `dist/`, embeds `docs/backtest.json` as `dist/data/results.json`, and writes non-secret build config into `<meta name="tallybard-config">`.
 
-## Run locally
+## Commands
 
 ```sh
-# serve the files
-python -m http.server 5173   # from apps/web
-# Mastra API on :4111 (mastra dev) — or set a different API URL:
-localStorage.setItem("tallybard_api_url", "http://localhost:4111")
+npm run build   # src/ + public/ + docs/backtest.json → dist/
+npm test        # 20 unit + CSP/secret/Copilot-boundary tests (node --test)
+npm run check   # build + test (run in CI)
+npm run dev     # http://localhost:5173 serving dist/ with SPA fallback
 ```
 
-Views: **Import** (paste/CSV → Gemma extraction → human confirm), **Chase
-queue** (amount × TabPFN risk, draft nudge, wa.me approve link — nothing
-auto-sends), **Ask your ledger** (agent chat, thread memory), **Privacy**
-(exactly what leaves the server + active model backend).
-
-All demo data is synthetic. The `NudgeCard` component and CSV edge-case
-handling are intentionally scaffold-only — they are assigned to the Copilot
-coding agent (see `docs/copilot-cli-task.md`).
+See [`docs/FRONTEND.md`](../../docs/FRONTEND.md) for the full route table, design system notes, Copilot wrapper boundaries (`nudge-slot.js`, `csv-wrapper.js`), and Render blueprint setup.
