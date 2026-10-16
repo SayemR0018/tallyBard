@@ -27,3 +27,9 @@ Thumbs.db
 # Logs & caches
 *.log
 .pytest_cache/
+.ruff_cache/
+
+# Build output
+apps/web/dist/
+apps/api/.mastra/
+.entire/logs/
