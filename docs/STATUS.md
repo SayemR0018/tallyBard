@@ -9,7 +9,8 @@ All times Asia/Dhaka.
   - GPU bench: **RTX 4000 Ada, 20GB VRAM, 8 vCPU/32GB, $0.76/hr → ~$2.28 for 3h**, then destroy.
   - CPU demo (always-on): **Basic 4GB/2vCPU ≈ $24/mo** recommended for ollama + embeddinggemma + gemma4:e2b; 2GB/$12 likely too tight with both models resident.
 - **Blocked-on-me:** droplet creation OK (above) — after that: ollama bench + demo URL; assign issues #2/#3 to Copilot agent; run copilot-cli-task in Copilot CLI w/ Entire; Sentry trace check; Render blueprint deploy + env vars; phone-check wa.me link; destroy GPU droplet; merge Copilot PRs; demo video/screenshots; post rewrite (T17 draft pending); send outreach (T18 drafts ready).
-- **Next:** T17 post draft (local file; will ask before staging to DEV).
+- **T17:** `docs/post-draft.md` written locally (challenge template, real numbers, limitations, PayMind credit, Devin-vs-Copilot build honesty). **Not staged to DEV** — needs your voice + your OK.
+- **Next:** all remaining work is blocked on your handoffs below.
 
 ## 2026-10-16 19:40
 
