@@ -73,32 +73,32 @@ def score(req: ScoreRequest) -> dict:
         r["client_id"] = str(r["client_id"])
     open_ids = {r["id"] for r in records if r["status"] in ("pending", "overdue")
                 and r["paid_at"] is None}
+    from features import label_for
     ids, X, _ = build_feature_frame(records, now=now)
     df = X.copy()
     df["id"] = ids
-    train_idx = [i for i, r in enumerate(records)
-                 if r["paid_at"] is not None
-                 or (r["paid_at"] is None and r["due_date"] is not None
-                     and (now - r["due_date"]).days > 7)]
-    train = df.iloc[train_idx]
-    from features import label_for
     y = [label_for(r, now) for r in records]
-    train = train[[v is not None for v in
-                   [y[i] for i in train_idx]]]
-    y_train = [v for v in y if v is not None]
+    labelled_idx = [i for i, v in enumerate(y) if v is not None]
+    train = df.iloc[labelled_idx]
+    y_train = [y[i] for i in labelled_idx]
     if len(train) < 5:
         raise HTTPException(503, "not enough labelled history to score")
     clf, model_id = get_classifier()
-    clf.fit(train[FEATURE_COLUMNS], y_train[: len(train)])
+    clf.fit(train[FEATURE_COLUMNS], y_train)
 
     targets = req.receivable_ids or sorted(open_ids)
+    # one batched predict_proba (a single forward pass), not one call per row
+    tdf = df[df["id"].isin(targets)]
+    probs = (
+        clf.predict_proba(tdf[FEATURE_COLUMNS])[:, 1] if len(tdf) else []
+    )
+    pmap = {rid: float(p) for rid, p in zip(tdf["id"].tolist(), probs)}
+    rec_by_id = {r["id"]: r for r in records}
+    row_by_id = {rid: tdf[tdf["id"] == rid] for rid in pmap}
     out = []
-    for rid in targets:
-        if rid not in df["id"].values:
-            continue
-        row = df[df["id"] == rid]
-        p = float(clf.predict_proba(row[FEATURE_COLUMNS])[:, 1][0])
-        rec = next(r for r in records if r["id"] == rid)
+    for rid, p in pmap.items():
+        rec = rec_by_id[rid]
+        row = row_by_id[rid]
         out.append({
             "receivable_id": rid,
             "p_late7": round(p, 4),

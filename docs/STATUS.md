@@ -2,10 +2,10 @@
 
 All times Asia/Dhaka.
 
-## 2026-10-16 11:20
+## 2026-10-16 19:05
 
-- **Done:** T01 hygiene (PLAN/STATUS committed, stray `MLH-week2/db/` verified identical + deleted). T02 Entire 0.11.5 installed + `entire enable --agent copilot-cli` (9 hooks, committed). T03 schema v2 applied to `tallybard-db` — **server_version 18.6**; enabled `vectorscale 0.9.0` + `pg_textsearch 1.5.1` (no restart needed); `payment_events` hypertable; DiskANN + BM25 indexes on client_notes/nudges; `hybrid_search_notes`/`hybrid_search_nudges` (RRF) verified returning ranked rows on smoke data (rows cleaned up after). Found + fixed: `.env` `DATABASE_URL` was Tiger **read-only** string → added `DATABASE_URL_RW` (options stripped).
-- **Notable:** pg_textsearch `<@>` requires a literal query text — hybrid fns are plpgsql `format()`. BM25 leg works without embeddings (graceful degradation pre-backfill).
-- **Blocked-on-me:** none right now.
-- **Next:** T04 synthetic generator → T05 risk sidecar (py3.12 venv, tabpfn) → T10 bootstrap script → T06 Mastra.
-- **Key numbers:** 7 commits. Deadlines: core loop Fri 20:00; feature cut-off Sat 14:00; publish Sun 22:00.
+- **Done since last entry:** T04 generator expanded to 600 receivables. T05 sidecar complete — leakage tests pass (4/4), real backtest committed (`docs/backtest.json`): baseline **wins at N=50** (AUC 0.655 vs 3.5's 0.533); at N=300 v2 0.681 / 3.5 0.672 / baseline 0.670. T10 `scripts/bootstrap-ollama.sh` written (CPU-demo + GPU-bench variants; no resources created). T06 Mastra API — all 9 tools, agent, weekly-chase workflow with suspend/resume, rate limit + CORS; typecheck clean; live smoke passed: stats + queue (TabPFN v3.5 scores, e.g. p=0.843 → priority 39,457) + 137 open scored in one batched call + real mixed bn/en draft via `gemma-4-26b-a4b-it` + privacy report. T08 wired — `@mastra/otel-bridge` + `instrument.mjs` Sentry.init verified booting; prod keeps genAI inputs/outputs OFF (`GenAIContentGate` + `dataCollection`); `SENTRY_CAPTURE_CONTENT=1` is the local-only screenshot mode.
+- **Fixes:** `pg` SSL → strip `ssl*` params, explicit `rejectUnauthorized:false` (Tiger CA chain). `/score` now batches predict (was 1 forward pass per row). AI Studio chat default → `gemma-4-26b-a4b-it` (31b hit free-tier rate limits). Embeddings request `outputDimensionality=768`.
+- **Blocked-on-me:** confirm a trace reaches Sentry dashboard (needs a real run with DSN — verify tonight). DO droplet sizes/costs approval for T10 actual creation.
+- **Next:** T09 UI scaffold → T13 CI → T14 Copilot issues + copilot-cli-task.md.
+- **Key numbers:** 60 clients / 600 receivables / 463 paid / 137 open scored; sidecar cold /score ≈ 61s (TabPFN refit), warm batch ≈ fast; commits ≈ 12.
