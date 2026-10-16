@@ -1,98 +1,112 @@
+import { html, raw, icon, mount, on, toast, fmtMoney, riskBadge, errorState, emptyState, skeletonRows } from "../ui.js";
 import { runTool } from "../api.js";
+import { DEMO_MODE } from "../config.js";
+import { renderNudgeSlot } from "./nudge-slot.js";
 
-export function renderQueue(root) {
-  root.innerHTML = `
-    <h2>Chase queue</h2>
-    <p class="muted">Open receivables ranked by amount × P(paid &gt;7 days late). Risk from TabPFN
-       on anonymised features; the "why" numbers come from SQL.</p>
-    <div class="row"><button id="q-refresh">Refresh scores</button>
-    <span id="q-status" class="muted"></span></div>
-    <div id="q-table"></div>
-    <div id="nudge-slot"></div>`;
+const TONES = ["friendly", "firm", "final"];
+const LANGS = [["", "Client’s"], ["bn", "Bangla"], ["en", "English"], ["mixed", "Mixed"]];
 
-  const status = document.getElementById("q-status");
-  const table = document.getElementById("q-table");
-  const slot = document.getElementById("nudge-slot");
-
-  async function load() {
-    status.textContent = "loading + scoring… (first score can take ~1 min)";
-    try {
-      const { queue } = await runTool("chase_queue", { limit: 20 });
-      status.textContent = `${queue.length} open receivables`;
-      table.innerHTML =
-        `<table><tr><th>client</th><th>amount</th><th>days overdue</th>
-         <th>P(late&gt;7d)</th><th>priority</th><th></th></tr>` +
-        queue
-          .map(
-            (q) => `<tr>
-              <td>${esc(q.client_name)}</td>
-              <td>${q.amount.toLocaleString()} ${q.currency}</td>
-              <td>${q.days_overdue}</td>
-              <td class="${riskClass(q.p_late7)}">${q.p_late7 == null ? "—" : q.p_late7.toFixed(2)}</td>
-              <td class="mono">${q.priority ?? "—"}</td>
-              <td><button class="ghost" data-rid="${q.receivable_id}">Draft nudge</button></td>
-            </tr>`,
-          )
-          .join("") +
-        `</table>`;
-      table.querySelectorAll("button[data-rid]").forEach((b) => {
-        b.onclick = () => draft(b.dataset.rid);
-      });
-    } catch (e) {
-      status.innerHTML = `<span class="error">${esc(e.message)}</span>`;
-    }
-  }
-
-  async function draft(rid) {
-    slot.innerHTML = `<div class="panel muted">drafting…</div>`;
-    try {
-      const d = await runTool("draft_nudge", {
-        receivable_id: rid,
-        tone: "friendly",
-        language: null,
-      });
-      // COPILOT ISSUE: this raw render is the scaffold stand-in. The real
-      // NudgeCard component (tone ladder, wa.me approve flow, copy button,
-      // dedup notice, tests) is assigned to the Copilot coding agent.
-      const wa = await safeApprove(d.nudge_id);
-      slot.innerHTML = `
-        <div class="panel" id="nudge-card" data-nudge="${d.nudge_id}">
-          <div class="muted">draft — ${d.language} / ${d.tone} · nudge ${d.nudge_id}</div>
-          <p>${esc(d.draft_text)}</p>
+export function renderQueue(main) {
+  mount(
+    main,
+    html`
+      <div class="screen-head">
+        <div><h1>Chase queue</h1><p>Open receivables ranked by amount × P(paid &gt;7 days late). Risk from TabPFN on anonymised numbers; the “why” is plain stats.</p></div>
+        <div class="actions"><button class="btn btn-secondary" id="q-refresh">${icon("refresh")} Re-score</button></div>
+      </div>
+      <div class="notice mb-4">${icon("info")}<p>First scoring call refits TabPFN on the ledger — up to a minute cold. Risk shows <em>Not scored</em> if the sidecar is asleep; the queue still works.</p></div>
+      <div class="card mb-4">
+        <div class="row between">
           <div class="row">
-            ${wa ? `<a href="${wa}" target="_blank" rel="noopener"><button>Approve → open WhatsApp</button></a>` : ""}
-            <button class="ghost" id="nc-copy">Copy</button>
+            <span class="small muted">Tone</span>
+            <div class="segmented" role="group" aria-label="Tone">${TONES.map((t) => html`<button type="button" data-tone="${t}" aria-pressed="${t === "friendly"}">${t}</button>`)}</div>
           </div>
-          <div class="muted" style="font-size:.75rem;margin-top:8px">
-            Nothing is sent automatically. You press send in WhatsApp.
+          <div class="row">
+            <label class="small muted" for="q-lang">Language</label>
+            <select class="input" id="q-lang">${LANGS.map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select>
           </div>
-        </div>`;
-      document.getElementById("nc-copy").onclick = () =>
-        navigator.clipboard.writeText(d.draft_text);
+        </div>
+      </div>
+      <section id="q-table">${skeletonRows(6)}</section>
+      <section id="q-nudge" class="mt-4" aria-live="polite"></section>
+    `,
+  );
+
+  const table = main.querySelector("#q-table");
+  const slot = main.querySelector("#q-nudge");
+  let tone = "friendly";
+  let queue = [];
+
+  on(main, "[data-tone]", "click", (e, b) => {
+    tone = b.dataset.tone;
+    main.querySelectorAll("[data-tone]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  });
+
+  async function load(rescore = false) {
+    mount(table, skeletonRows(6));
+    try {
+      ({ queue } = await runTool("chase_queue", { limit: 20, rescore }));
+      if (!queue?.length) {
+        mount(table, emptyState({ title: "Nothing to chase", body: "No open receivables. Import some rows or mark a few unpaid." }));
+        return;
+      }
+      const unscored = queue.every((q) => q.p_late7 == null);
+      mount(
+        table,
+        html`${unscored ? html`<div class="notice notice-warn mb-3">${icon("alert")}<p>Risk sidecar didn’t answer — showing the queue without scores. <button class="btn btn-sm btn-secondary" id="q-retry">Retry scoring</button></p></div>` : ""}
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>Client</th><th class="num">Amount</th><th>Overdue</th><th>Risk</th><th class="num hide-sm">Priority</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>${queue.map((q) => html`<tr class="queue-row" data-rid="${q.receivable_id}">
+            <td><strong>${q.client_name}</strong><div class="why">${q.currency} · id ${q.receivable_id.slice(0, 8)}</div></td>
+            <td class="num">${fmtMoney(q.amount, q.currency)}</td>
+            <td>${q.days_overdue ? html`<span class="badge ${q.days_overdue > 21 ? "badge-bad" : q.days_overdue > 7 ? "badge-warn" : ""}">${q.days_overdue} days</span>` : html`<span class="badge">not due</span>`}</td>
+            <td>${riskBadge(q.p_late7)}</td>
+            <td class="num mono hide-sm">${q.priority == null ? "—" : Math.round(q.priority).toLocaleString("en-IN")}</td>
+            <td><div class="row nowrap"><button class="btn btn-sm" data-draft="${q.receivable_id}">${icon("pen")} Draft</button>${DEMO_MODE ? "" : html`<button class="btn btn-sm btn-ghost" data-paid="${q.receivable_id}">${icon("check")} Paid</button>`}</div></td>
+          </tr>`)}</tbody>
+        </table></div>`,
+      );
+      main.querySelector("#q-retry")?.addEventListener("click", load);
     } catch (e) {
-      slot.innerHTML = `<div class="panel error">${esc(e.message)}</div>`;
+      mount(table, errorState(e));
+      table.querySelector("[data-retry]").onclick = load;
     }
   }
 
-  document.getElementById("q-refresh").onclick = load;
+  on(main, "[data-draft]", "click", async (e, b) => {
+    const rid = b.dataset.draft;
+    const rec = queue.find((q) => q.receivable_id === rid);
+    const language = main.querySelector("#q-lang").value || null;
+    b.disabled = true;
+    mount(slot, html`<div class="card"><p class="small muted"><span class="spinner"></span> Drafting a ${tone} nudge for ${rec?.client_name}… (searching notes + past nudges, then Gemma)</p></div>`);
+    slot.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    try {
+      const d = await runTool("draft_nudge", { receivable_id: rid, tone, language });
+      await renderNudgeSlot(slot, { ...d, status: "draft" }, { receivable: rec });
+    } catch (err) {
+      mount(slot, errorState(err, "Try drafting again"));
+      slot.querySelector("[data-retry]").onclick = () => b.click();
+    } finally {
+      b.disabled = false;
+    }
+  });
+
+  on(main, "[data-paid]", "click", async (e, b) => {
+    const rid = b.dataset.paid;
+    const rec = queue.find((q) => q.receivable_id === rid);
+    if (!confirm(`Mark ${rec?.client_name}’s ${fmtMoney(rec?.amount, rec?.currency)} as paid?`)) return;
+    b.disabled = true;
+    try {
+      await runTool("mark_paid", { receivable_id: rid, amount: null, method: "demo" });
+      toast("Marked paid", "ok");
+      b.closest("tr")?.remove();
+      queue = queue.filter((q) => q.receivable_id !== rid);
+    } catch (err) {
+      b.disabled = false;
+      toast(err.message, "bad");
+    }
+  });
+
+  main.querySelector("#q-refresh").onclick = () => load(true);
   load();
-}
-
-async function safeApprove(nudgeId) {
-  try {
-    const a = await runTool("approve_nudge", { nudge_id: nudgeId });
-    return a.wa_link;
-  } catch {
-    return null; // already approved or phone missing — copy still works
-  }
-}
-
-function riskClass(p) {
-  if (p == null) return "muted";
-  return p >= 0.65 ? "risk-hi" : p >= 0.4 ? "risk-md" : "risk-lo";
-}
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"]/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
-  );
 }
