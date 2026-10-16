@@ -9,10 +9,12 @@ import {
   draftNudge,
   importText,
   ledgerStats,
+  listNudges,
   markPaid,
   markSent,
   privacyReport,
   scoreReceivables,
+  systemStatus,
 } from "../tools/ledger.js";
 
 export const tallybardAgent = new Agent({
@@ -39,6 +41,8 @@ export const tallybardAgent = new Agent({
     markSent,
     markPaid,
     ledgerStats,
+    listNudges,
+    systemStatus,
     privacyReport,
   },
   memory: new Memory({

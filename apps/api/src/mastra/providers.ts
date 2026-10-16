@@ -23,7 +23,7 @@ export function chatModel() {
     const google = createGoogleGenerativeAI({
       apiKey: process.env.GOOGLE_API_KEY!,
     });
-    return google(process.env.AI_CHAT_MODEL || "gemma-4-31b-it");
+    return google(process.env.AI_CHAT_MODEL || "gemma-4-26b-a4b-it");
   }
   const ollama = createOpenAICompatible({
     name: "ollama",

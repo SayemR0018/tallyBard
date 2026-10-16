@@ -1,5 +1,6 @@
 import "./loadenv.js";
 import { Mastra } from "@mastra/core";
+import { registerApiRoute } from "@mastra/core/server";
 import {
   Observability,
   SensitiveDataFilter,
@@ -71,5 +72,13 @@ export const mastra = new Mastra({
       credentials: false,
     },
     middleware: [rateLimitMiddleware],
+    // Render health check + the web app's warm-up ping. Cheap: no DB hit.
+    apiRoutes: [
+      registerApiRoute("/health", {
+        method: "GET",
+        handler: async (c) =>
+          c.json({ status: "ok", service: "tallybard-api", demo_data: "synthetic" }),
+      }),
+    ],
   },
 });
