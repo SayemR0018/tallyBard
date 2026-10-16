@@ -22,7 +22,7 @@ random.seed(SEED)
 NS = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # NAMESPACE_DNS
 
 N_CLIENTS = 60
-N_RECEIVABLES = 300
+N_RECEIVABLES = 600  # >= 300 train + later-window test rows for the backtest
 NOW = datetime(2026, 10, 15, tzinfo=timezone.utc)  # fixed anchor for determinism
 
 NAMES_BN = [

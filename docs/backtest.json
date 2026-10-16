@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-10-16T06:19:45.896187+00:00",
+  "data": "synthetic (db/generate_synthetic.py seed 20261016)",
+  "disclaimer": "Synthetic benchmark \u2014 pipeline evidence, not real clients.",
+  "n_labelled": 573,
+  "positive_rate": 0.5828970331588132,
+  "packages": {
+    "tabpfn": "9.2.0"
+  },
+  "models_used": {
+    "tabpfn35": "v3.5",
+    "tabpfnv2": "v2"
+  },
+  "splits": [
+    {
+      "n_train": 50,
+      "n_test": 523,
+      "test_positive_rate": 0.5812619502868069,
+      "baseline": {
+        "auc": 0.6553637947608747,
+        "brier": 0.24094031947913408
+      },
+      "tabpfn35": {
+        "auc": 0.5330900024032684,
+        "brier": 0.25357672572135925
+      },
+      "tabpfnv2": {
+        "auc": 0.5152156933429465,
+        "brier": 0.25573182106018066
+      }
+    },
+    {
+      "n_train": 100,
+      "n_test": 473,
+      "test_positive_rate": 0.5898520084566596,
+      "baseline": {
+        "auc": 0.6525976425377822,
+        "brier": 0.2402648128442753
+      },
+      "tabpfn35": {
+        "auc": 0.6194250452647527,
+        "brier": 0.23572243750095367
+      },
+      "tabpfnv2": {
+        "auc": 0.6249307172153864,
+        "brier": 0.24300076067447662
+      }
+    },
+    {
+      "n_train": 300,
+      "n_test": 273,
+      "test_positive_rate": 0.5860805860805861,
+      "baseline": {
+        "auc": 0.6704646017699115,
+        "brier": 0.23255174235242473
+      },
+      "tabpfn35": {
+        "auc": 0.6724004424778761,
+        "brier": 0.22407250106334686
+      },
+      "tabpfnv2": {
+        "auc": 0.6809181415929204,
+        "brier": 0.22479704022407532
+      }
+    }
+  ]
+}
