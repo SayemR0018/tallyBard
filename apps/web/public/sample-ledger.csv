@@ -1,0 +1,9 @@
+client_name,phone,amount,currency,kind,issued_at,due_date,preferred_language,note
+Amina Begum (synthetic),+8801711000001,12000,BDT,udhaar,2026-09-15,2026-10-01,bn,Regular customer; pays after salary day
+Rafiq Traders (synthetic),+8801822000002,45500,BDT,invoice,2026-08-20,2026-09-20,mixed,Wholesale order #231; asked for 2 weeks extra
+Tanvir Hossain (synthetic),+8801933000003,3500,BDT,udhaar,2026-10-05,2026-10-12,bn,Tuition fee October
+Nadia Islam (synthetic),+8801644000004,8200,BDT,invoice,2026-09-01,2026-09-30,en,Logo + business card design
+Karim Store (synthetic),+8801755000005,27000,BDT,udhaar,2026-09-10,2026-10-10,bn,Monthly stock on credit
+Sumaiya Akter (synthetic),+8801866000006,15000,BDT,invoice,2026-09-25,2026-10-25,mixed,Catering deposit balance
+Community Fund (synthetic),,2000,BDT,other,2026-10-01,2026-10-31,bn,Monthly chanda - treasurer entry
+Jahid Enterprise (synthetic),+8801977000007,61000,BDT,invoice,2026-08-01,2026-08-31,en,Website build phase 2
