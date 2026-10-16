@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TallyBard — collections copilot</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>TallyBard</h1>
+      <p class="tag">Collections copilot for people who sell on credit.</p>
+      <p class="synthetic-banner">
+        Demo data is <strong>synthetic</strong> — no real clients.
+      </p>
+      <nav>
+        <a href="#/import" data-route="import">Import</a>
+        <a href="#/queue" data-route="queue">Chase queue</a>
+        <a href="#/ask" data-route="ask">Ask your ledger</a>
+        <a href="#/privacy" data-route="privacy">Privacy</a>
+      </nav>
+      <span id="backend-badge" title="active model backend"></span>
+    </header>
+    <main id="view"></main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
