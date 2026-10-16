@@ -53,7 +53,7 @@ services:
   - type: web
     name: tallybard-sidecar
     runtime: python
-    plan: standard # torch + TabPFN weights need >512MB; verify peak RAM
+    plan: pro # measured 2026-10-16: ~2.26GB RSS warm (torch + TabPFN-3.5); 2GB standard OOMs
     rootDir: apps/risk-sidecar
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
