@@ -1,21 +1,46 @@
-# TallyBard — Render blueprint
+# TallyBard — Render Blueprint (https://docs.render.com/blueprint-spec)
 #
-# Three services: static web UI, Mastra API (TypeScript), FastAPI risk sidecar.
-# Secrets are `sync: false` — paste them in the Render dashboard after the
-# blueprint is applied (DATABASE_URL/DATABASE_URL_RW from Tiger,
-# GOOGLE_API_KEY, SENTRY_DSN, OLLAMA_API_KEY/OLLAMA_BASE_URL once the droplet
-# exists, TABPFN_TOKEN only if running api mode).
+# Three services:
+#   1. tallybard-web      — static site + zero-login demo SPA (apps/web/dist)
+#   2. tallybard-api      — Mastra API (TypeScript, Node 24)
+#   3. tallybard-sidecar  — FastAPI + TabPFN risk scorer (Python 3.12)
 #
-# NOTE on sidecar size: local TabPFN (torch) needs real RAM — measure before
-# deploying and bump `plan` if needed (see docs/STATUS.md / docs/results.md).
-# If it doesn't fit, set TABPFN_MODE=api and the README says so plainly.
+# Secrets are declared with `sync: false` and no values — paste them once in
+# the Render dashboard when applying the blueprint.
+#
+# Sidecar RAM note (measured 2026-10-16):
+#   Local TabPFN-3.5 (PyTorch + safetensors weights) peaks at ~2.26 GB RSS warm.
+#   Render's Free (512 MB), Starter (512 MB), and Standard (2 GB) tiers will OOM
+#   under `TABPFN_MODE=local`. Either keep `plan: pro` (4 GB) or switch
+#   `TABPFN_MODE=api` with a Prior Labs token (`TABPFN_TOKEN`) on a smaller tier.
 
 services:
   - type: web
     name: tallybard-web
     runtime: static
-    staticPublishPath: apps/web
-    # hash-routed SPA — no rewrites needed
+    buildCommand: node apps/web/build.mjs
+    staticPublishPath: apps/web/dist
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: WEB_API_URL
+        value: https://tallybard-api.onrender.com
+      - key: WEB_DEMO_MODE
+        value: "true"
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://tallybard-api.onrender.com http://localhost:4111; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
   - type: web
     name: tallybard-api
@@ -23,8 +48,17 @@ services:
     plan: starter
     rootDir: apps/api
     buildCommand: npm ci && npx mastra build
-    startCommand: node --import=./instrument.mjs .mastra/output/index.mjs
+    startCommand: node --import=./.mastra/output/instrument.mjs .mastra/output/index.mjs
+    healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "4111"
+      - key: DATABASE_URL
+        sync: false
       - key: DATABASE_URL_RW
         sync: false
       - key: GOOGLE_API_KEY
@@ -36,7 +70,7 @@ services:
       - key: OLLAMA_API_KEY
         sync: false
       - key: MODEL_BACKEND
-        value: aistudio # flip to ollama when the droplet is up
+        value: aistudio # flip to ollama when the self-hosted droplet is up
       - key: AI_CHAT_MODEL
         value: gemma-4-26b-a4b-it
       - key: AI_EMBED_MODEL
@@ -47,22 +81,23 @@ services:
         value: https://tallybard-web.onrender.com
       - key: SENTRY_ENV
         value: production
-      - key: NODE_VERSION
-        value: "24"
 
   - type: web
     name: tallybard-sidecar
     runtime: python
-    plan: pro # measured 2026-10-16: ~2.26GB RSS warm (torch + TabPFN-3.5); 2GB standard OOMs
+    plan: pro # measured 2026-10-16: ~2.26 GB RSS warm (torch + TabPFN-3.5); <=2 GB tiers OOM in local mode
     rootDir: apps/risk-sidecar
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
       - key: DATABASE_URL # read-only DSN — sidecar never writes
         sync: false
       - key: TABPFN_MODE
         value: local
+      - key: TABPFN_TAG
+        value: tabpfn35
       - key: TABPFN_TOKEN
         sync: false
-      - key: PYTHON_VERSION
-        value: "3.12"
