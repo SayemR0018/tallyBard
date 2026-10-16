@@ -106,9 +106,13 @@ export const confirmImport = createTool({
     } finally {
       client.release();
     }
+    scoreCache = null;
     return { inserted, client_ids: [...clientIds] };
   },
 });
+
+let scoreCache: { at: number; map: Record<string, number> } | null = null;
+const SCORE_TTL_MS = 90_000;
 
 export const scoreReceivables = createTool({
   id: "score_receivables",
@@ -145,7 +149,10 @@ export const chaseQueue = createTool({
   description:
     "Ranked chase queue: open receivables ordered by amount x P(late). " +
     "Joins ledger rows to sidecar risk scores.",
-  inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
+  inputSchema: z.object({
+    limit: z.number().int().min(1).max(50).default(20),
+    rescore: z.boolean().default(false),
+  }),
   outputSchema: z.object({
     queue: z.array(
       z.object({
@@ -166,18 +173,28 @@ export const chaseQueue = createTool({
        WHERE r.status IN ('pending','overdue') AND r.paid_at IS NULL`,
     );
     let scores: Record<string, number> = {};
-    try {
-      const res = await fetch(`${process.env.RISK_SIDECAR_URL}/score`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: "{}",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        for (const s of data.scores) scores[s.receivable_id] = s.p_late7;
+    const fresh =
+      !inputData.rescore &&
+      scoreCache &&
+      Date.now() - scoreCache.at < SCORE_TTL_MS;
+    if (fresh && scoreCache) {
+      scores = scoreCache.map;
+    } else {
+      try {
+        const res = await fetch(`${process.env.RISK_SIDECAR_URL}/score`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          for (const s of data.scores) scores[s.receivable_id] = s.p_late7;
+          if (Object.keys(scores).length)
+            scoreCache = { at: Date.now(), map: scores };
+        }
+      } catch {
+        // sidecar down -> queue still works, risk column null
       }
-    } catch {
-      // sidecar down -> queue still works, risk column null
     }
     const now = Date.now();
     const queue = open.rows
@@ -360,6 +377,7 @@ export const markPaid = createTool({
       "INSERT INTO payment_events (receivable_id, amount, paid_at, method) VALUES ($1,$2,now(),$3)",
       [inputData.receivable_id, amt, inputData.method],
     );
+    scoreCache = null;
     return { ok: true };
   },
 });
@@ -393,6 +411,109 @@ export const ledgerStats = createTool({
     }[inputData.query];
     const r = await readPool.query(sql);
     return { rows: r.rows };
+  },
+});
+
+export const listNudges = createTool({
+  id: "list_nudges",
+  description:
+    "Read-only list of recent nudges (draft/approved/sent) with client name, " +
+    "amount, tone, language and text — for the Nudges screen.",
+  inputSchema: z.object({
+    status: z.enum(["draft", "approved", "sent", "all"]).default("all"),
+    limit: z.number().int().min(1).max(100).default(30),
+  }),
+  outputSchema: z.object({
+    nudges: z.array(
+      z.object({
+        nudge_id: z.string(),
+        receivable_id: z.string(),
+        client_name: z.string(),
+        amount: z.number(),
+        currency: z.string(),
+        status: z.string(),
+        tone: z.string(),
+        language: z.string(),
+        draft_text: z.string(),
+        created_at: z.string(),
+      }),
+    ),
+  }),
+  execute: async (inputData) => {
+    const where = inputData.status === "all" ? "" : "WHERE n.status = $2";
+    const params: unknown[] = [inputData.limit];
+    if (inputData.status !== "all") params.push(inputData.status);
+    const r = await readPool.query(
+      `SELECT n.id, n.receivable_id, c.name, r.amount, r.currency, n.status,
+              n.tone, n.language, n.draft_text, n.created_at
+       FROM nudges n
+       JOIN receivables r ON r.id = n.receivable_id
+       JOIN clients c ON c.id = r.client_id
+       ${where}
+       ORDER BY n.created_at DESC LIMIT $1`,
+      params,
+    );
+    return {
+      nudges: r.rows.map((n: any) => ({
+        nudge_id: String(n.id),
+        receivable_id: String(n.receivable_id),
+        client_name: n.name,
+        amount: Number(n.amount),
+        currency: n.currency,
+        status: n.status,
+        tone: n.tone,
+        language: n.language,
+        draft_text: n.draft_text,
+        created_at: new Date(n.created_at).toISOString(),
+      })),
+    };
+  },
+});
+
+export const systemStatus = createTool({
+  id: "system_status",
+  description:
+    "Which model backend is active, which models, whether the risk sidecar " +
+    "is reachable and in which TabPFN mode. No secrets.",
+  inputSchema: z.object({}),
+  outputSchema: z.object({
+    backend: z.enum(["ollama", "aistudio"]),
+    chat_model: z.string(),
+    embed_model: z.string(),
+    sidecar: z.object({
+      ok: z.boolean(),
+      mode: z.string().nullable(),
+    }),
+    demo_data: z.literal("synthetic"),
+  }),
+  execute: async () => {
+    const isOllama = backend() === "ollama";
+    let sidecar = { ok: false, mode: null as string | null };
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 4000);
+      const res = await fetch(`${process.env.RISK_SIDECAR_URL}/health`, {
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      if (res.ok) {
+        const j = (await res.json()) as { mode?: string };
+        sidecar = { ok: true, mode: j.mode ?? null };
+      }
+    } catch {
+      /* sidecar down or sleeping */
+    }
+    return {
+      backend: backend(),
+      chat_model: isOllama
+        ? process.env.OLLAMA_CHAT_MODEL || "gemma4:e4b"
+        : process.env.AI_CHAT_MODEL || "gemma-4-26b-a4b-it",
+      embed_model: isOllama
+        ? process.env.OLLAMA_EMBED_MODEL || "embeddinggemma"
+        : process.env.AI_EMBED_MODEL || "gemini-embedding-001",
+      sidecar,
+      demo_data: "synthetic" as const,
+    };
   },
 });
 

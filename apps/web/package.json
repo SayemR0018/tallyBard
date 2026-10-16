@@ -1,0 +1,14 @@
+{
+  "name": "tallybard-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TallyBard site + demo app — zero-dependency static build",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node dev.mjs",
+    "test": "node --test",
+    "check": "npm run build && npm test"
+  }
+}

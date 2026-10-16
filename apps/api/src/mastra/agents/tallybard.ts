@@ -2,6 +2,7 @@ import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
 import { PostgresStore } from "@mastra/pg";
 import { chatModel } from "../providers.js";
+import { dsn, ssl } from "../db.js";
 import {
   approveNudge,
   chaseQueue,
@@ -9,10 +10,12 @@ import {
   draftNudge,
   importText,
   ledgerStats,
+  listNudges,
   markPaid,
   markSent,
   privacyReport,
   scoreReceivables,
+  systemStatus,
 } from "../tools/ledger.js";
 
 export const tallybardAgent = new Agent({
@@ -39,13 +42,15 @@ export const tallybardAgent = new Agent({
     markSent,
     markPaid,
     ledgerStats,
+    listNudges,
+    systemStatus,
     privacyReport,
   },
   memory: new Memory({
     storage: new PostgresStore({
       id: "tallybard-memory",
-      connectionString:
-        process.env.DATABASE_URL_RW || process.env.DATABASE_URL || "",
+      connectionString: dsn(process.env.DATABASE_URL_RW || process.env.DATABASE_URL) || "",
+      ssl,
     }),
     options: { lastMessages: 20 },
   }),

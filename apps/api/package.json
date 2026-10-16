@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "mastra dev --custom-args=\"--import=./instrument.mjs\"",
     "build": "mastra build",
-    "start": "node --import=./instrument.mjs .mastra/output/index.mjs",
+    "start": "node --import=./.mastra/output/instrument.mjs .mastra/output/index.mjs",
     "smoke": "tsx scripts/smoke.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -1,4 +1,5 @@
-import "./loadenv.js";
+import { loadEnv } from "./loadenv.js";
+loadEnv();
 import { Mastra } from "@mastra/core";
 import {
   Observability,
@@ -8,6 +9,7 @@ import type { AnySpan, SpanOutputProcessor } from "@mastra/core/observability";
 import { OtelBridge } from "@mastra/otel-bridge";
 import { PostgresStore } from "@mastra/pg";
 import { tallybardAgent } from "./agents/tallybard.js";
+import { dsn, ssl } from "./db.js";
 import { weeklyChase } from "./workflows/weekly-chase.js";
 
 const captureContent = process.env.SENTRY_CAPTURE_CONTENT === "1";
@@ -44,8 +46,8 @@ function rateLimitMiddleware(c: any, next: any) {
 
 const storage = new PostgresStore({
   id: "tallybard-store",
-  connectionString:
-    process.env.DATABASE_URL_RW || process.env.DATABASE_URL || "",
+  connectionString: dsn(process.env.DATABASE_URL_RW || process.env.DATABASE_URL) || "",
+  ssl,
 });
 
 export const mastra = new Mastra({
@@ -65,11 +67,15 @@ export const mastra = new Mastra({
     },
   }),
   server: {
+    host: process.env.HOST || "0.0.0.0",
+    port: Number(process.env.PORT || 4111),
     cors: {
       origin: (process.env.WEB_ORIGIN || "http://localhost:5173").split(","),
       allowMethods: ["GET", "POST", "OPTIONS"],
       credentials: false,
     },
+    // Mastra serves GET /health ({"success":true}) itself — used by the Render
+    // health check and the web app's warm-up ping.
     middleware: [rateLimitMiddleware],
   },
 });

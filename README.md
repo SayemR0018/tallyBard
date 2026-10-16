@@ -16,6 +16,12 @@ approves every message — nothing is ever sent automatically.**
 
 Built with **PriorLabs-TabPFN**.
 
+## Try it
+
+- **Zero-login demo (`/app`)**: opens directly onto the synthetic ledger (60 clients, 600 receivables, Bangla + English notes). No sign-up, no tokens, no cookies.
+- **Sample CSV**: download [`/sample-ledger.csv`](apps/web/public/sample-ledger.csv) or click **Sample CSV** on `/app/import` to test extraction. Confirmed rows stay in your browser (`localStorage`) in demo mode and never overwrite the shared synthetic ledger; click **Reset demo** in the banner at any time.
+- **Full frontend & Render guide**: see [`docs/FRONTEND.md`](docs/FRONTEND.md) and screenshots in [`docs/screenshots/`](docs/screenshots/).
+
 ## Architecture
 
 ```mermaid
@@ -50,8 +56,8 @@ cd apps/risk-sidecar && uv venv --python 3.12 .venv && uv pip install -r require
 # 3. Mastra API
 cd ../api && npm ci && npx mastra dev
 
-# 4. web UI (zero build)
-cd ../web && python -m http.server 5173   # → http://localhost:5173
+# 4. web site + demo app (zero external deps, deterministic build → dist/)
+cd ../web && npm run check && npm run dev # → http://localhost:5173
 ```
 
 Copy `.env.example` → `.env` and fill in the values (never commit `.env`).
@@ -128,12 +134,12 @@ hybrid-search-grounded language-aware drafting.
 ## Repo layout
 
 ```
-apps/web/          static SPA (zero build, vanilla ES modules)
+apps/web/          marketing site + zero-login demo SPA (build.mjs → dist/, 20 node:test checks)
 apps/api/          Mastra API — tools, agent, weekly-chase workflow, Sentry
 apps/risk-sidecar/ FastAPI + TabPFN scoring, point-in-time features, backtest
 db/                schema.sql, seeds.sql, synthetic generator
-scripts/           db.py helper, bootstrap-ollama.sh
-docs/              PLAN, STATUS, results, backtest.json, copilot-cli-task.md
+scripts/           db.py helper, bootstrap-ollama-do.sh
+docs/              PLAN, STATUS, FRONTEND, results, backtest.json, screenshots/
 render.yaml        Render blueprint
 ```
 
