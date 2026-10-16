@@ -74,6 +74,14 @@ commercial self-host. Verify before relying on this.
   `starter` instead (weights stay on Prior Labs' side — note their key is
   non-commercial, so api mode is a demo-fallback story, not a business plan).
 
+## Model bench (2026-10-16, `npx tsx scripts/bench.ts`, 15 calls, 3 fixed prompts × 5)
+
+| backend | model | calls | latency | notes |
+|---|---|---|---|---|
+| aistudio | gemma-4-26b-a4b-it | 15 | p50=20,499ms p95=26,243ms | free tier; all 15 returned text + token counts |
+| aistudio | gemini-embedding-001 | — | — | `outputDimensionality=768` confirmed (embed_dim=768) |
+| ollama | gemma4:e2b (droplet) | — | — | pending droplet (T10/H4) |
+
 ## Pending real measurements
 
 - [ ] GPU droplet benchmark (blocked on droplet approval, T10)
